@@ -1,0 +1,26 @@
+{
+    "id": "1643E013",
+    "path": "~/Dev/Sites/regress/app.R",
+    "project_path": "app.R",
+    "type": "r_source",
+    "hash": "706901190",
+    "contents": "",
+    "dirty": false,
+    "created": 1647833678065.0,
+    "source_on_save": false,
+    "relative_order": 2,
+    "properties": {
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "49,134",
+        "scrollLine": "36"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1647843797,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1647843797486,
+    "read_only": false,
+    "read_only_alternatives": []
+}
