@@ -16,11 +16,14 @@ ui <- dashboardPage(
                      div(class='col-lg-12 col-md-12',
                          hr()),
                      
-                     # Train-Test
-                     sliderInput("data_split", label = "Percent Train", min = 0,
-                                 max = 100, value = 70, step = 5),
                      
-                     # Fit Model
+                     # Fit Model 
+                     radioButtons("label", label = ("Select Model"),
+                                  choices = list("GLM", "LDA", "QDA", "NAIVE"), 
+                                  selected = "GLM",
+                                  inline = TRUE),
+                     sliderInput("data_split", label = "Percent Train", min = 0, # Train-Test split
+                                 max = 100, value = 70, step = 5),
                      textInput(inputId = 'formula',
                                label = 'Creat formula',
                                placeholder = 'y ~ X1 + X2 + ...'),
@@ -31,7 +34,16 @@ ui <- dashboardPage(
   ),
   dashboardBody(
     tabItems(
-      tabItem(tabName = 'instruction'),
+      tabItem(tabName = 'instruction',
+              strong('Instruction'),
+              br(),br(),
+              p('User upload file first, then the app will render raw table.'),
+              p('User can see raw table and select observer to generate coorelation matrix.'),
+              p('User create formula to fit model, then app generated confusion matrix, graph and input for prediction follwing formula.'),
+              p('Graph render only 2 dimension following by user formula "Response ~ Predictor1 + Predictor2", if predictor more than 2 graph will not render.'),
+              p('')
+              
+              ),
       tabItem(tabName = 'table',
               fluidRow(
                 div(class = 'col-lg-12 col-md-12col-sm-12', id='table',
@@ -57,17 +69,16 @@ ui <- dashboardPage(
                 ),
               ),
               fluidRow(
+                div(class = 'col-lg-6 col-md-6 col-sm-12', id='graph',
+                    strong('Graph Render||| : '),
+                    plotOutput('graph')
+                ),
                 div(class = 'col-lg-6 col-md-6 col-sm-12', id='predictors',
                     strong('Enter to predict : '),
                     uiOutput(outputId = 'predictors'),
                     actionButton(inputId = 'button3', label = 'Predict'),
                     br(), br(),
                     valueBoxOutput("predict_result", width = '100%')
-                ),
-                div(class = 'col-lg-6 col-md-6 col-sm-12', id='graph',
-                    strong('Graph Render||| : '),
-                    plotOutput('graph')
-                    
                 )
               )
       )

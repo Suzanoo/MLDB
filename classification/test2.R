@@ -1,74 +1,32 @@
-rm(list=ls())
-# library(ISLR2)
-# library(tidyverse)
-
 attach(Smarket)
-names(Smarket) #see header
-
-head(Smarket)
-summary(Smarket)
-pairs(Smarket)
-
-cor(Smarket[,-9]) #create matrix(data frame) exclude qualitative column
-
-plot(Volume)
-
 #############################################
 train <- (Year <  2005) #index
 Smarket.2005 <- Smarket[!train, ] #X_test
 Direction.2005 <- Direction[!train] #y_test
-
-df <- data.frame(Smarket.2005[c('Lag1', 'Lag2')], Direction.2005)
-names(df) <- c('Lag1', 'Lag2', 'Class')
-
+formula <- c('Direction ~ Lag1 + Lag2')
+Xi <- c('Lag1', 'Lag2')
 #############################################
 ##Logistic Regression
-glm.fit <- glm(Direction ~ Lag1+ Lag2,
-               data = Smarket,
-               family = binomial,
-               subset = train)
-summary(model)
+glm.fit <- model_fit(label = 'GLM', formula, Smarket, train)
+summ('GLM', glm.fit)
+glm.pred <- model_predict('GLM', glm.fit, Smarket.2005, Direction.2005) #y_predict
 
-glm.probs <- predict(glm.fit, Smarket.2005, type = "response") #y_predict
+cfm <- caret::confusionMatrix(glm.pred , Direction.2005)
+ggplotConfusionMatrix(cfm)
 
-#transform numerical labels to strings labels
-glm.pred <- rep("Down", 252)#create labels vector
-glm.pred[glm.probs > 0.5] = "Up"#transforms to "Up" if match prob>0.5
-
-#Confusion matrix
-table(glm.pred, Direction.2005)
-mean(glm.pred == Direction.2005)
-
-#
-predict(glm.fit,
-        newdata = data.frame(
-          Lag1=c(1.2, 1.5), Lag2=c(1.1, -0.8), type="response"
-        ))
-
-#
-df1 <- mutate(Smarket.2005,  "Class"=glm.pred)
-p1 <- ggplot(data = df1,
-             aes(x=Lag1, y=Lag2))+
-  geom_point(aes(color = Class,
-                 shape = Class,
-                 alpha = .5))+
-  ggtitle("GLM fit")+
-  theme(legend.position = "none")
-p1
+model_plot('GLM', Xi, Smarket.2005, glm.fit, Direction.2005, glm.pred )
 
 #############################################
 ##LDA
 # library(MASS)
-lda.fit = MASS::lda(Direction ~ Lag1+ Lag2, data = Smarket, subset = train)
-lda.fit
+lda.fit <- model_fit(label = 'LDA', formula, Smarket, train)
+summ('LDA', lda.fit)
+lda.pred <- model_predict('LDA', lda.fit, Smarket.2005, Direction.2005) #y_predict
 
-lda.fit.pred <- predict(lda.fit, Smarket.2005)
-names(lda.fit.pred)
+cfm <- caret::confusionMatrix(lda.pred , Direction.2005)
+ggplotConfusionMatrix(cfm)
 
-lda.fit.class <- lda.fit.pred$class
-
-table(lda.fit.class, Direction.2005)
-mean(lda.fit.class == Direction.2005)
+model_plot('LDA', Xi, Smarket.2005, lda.fit, Direction.2005, lda.pred)
 
 #Apply threshold 50%, 80%
 sum(lda.fit.pred$posterior[, 1] >= 0.5)
@@ -80,58 +38,35 @@ lda.fit.pred$class[1:20]
 
 plot(lda.fit.pred$posterior[,1])
 
-predict(lda.fit,
-        newdata = data.frame(Lag1=c(1.2, 1.5), Lag2=c(1.1, -0.8)),
-        type="response"
-)
-
-df2 <- mutate(Smarket.2005, "Probs"=lda.fit.pred$posterior[, 2], "Class"=lda.fit.pred$class)
-p2 <- ggplot(data = df2,
-             aes(x=Lag1, y=Lag2))+
-  geom_point(aes(color = Class,
-                 shape = Class,
-                 alpha = .5))+
-  ggtitle("LDA")+
-  theme(legend.position = "none")
-p2
-
 #############################################
 ##QDA 
 qda.fit <- MASS::qda(Direction ~ Lag1 + Lag2, data = Smarket, subset = train)
+qda.fit <- model_fit(label = 'QDA', formula, Smarket, train)
 qda.fit
+summ('QDA', qda.fit)
 
-qda.fit.pred <- predict(qda.fit, Smarket.2005)
-qda.class <- qda.fit.pred$class
+qda.pred <- model_predict('QDA', qda.fit, Smarket.2005, Direction.2005)
 
-table(qda.fit.class, Direction.2005)
-mean(qda.fit.class == Direction.2005)
+cfm <- caret::confusionMatrix(qda.pred , Direction.2005)
+ggplotConfusionMatrix(cfm)
 
-predict(qda.fit,
-        newdata = data.frame(Lag1=c(1.2, 1.5), Lag2=c(1.1, -0.8)),
-        type="response"
-)
-
-df3 <- mutate(Smarket.2005, "Probs"=qda.fit.pred$posterior[, 2], "Class"=qda.fit.pred$class)
-p3 <- ggplot(data = df3,
-             aes(x=Lag1, y=Lag2))+
-  geom_point(aes(color = Class,
-                 shape = Class,
-                 alpha = .5))+
-  ggtitle("QDA")+
-  theme(legend.position = "none")
-p3
-
-library(patchwork)
-
-p1|p2|p3 
+model_plot('QDA', Xi, Smarket.2005, qda.fit, Direction.2005, qda.pred)
 
 #############################################
 ##Naive Bayes
 # library(e1071)
 nb.fit <- e1071::naiveBayes(Direction ~ Lag1+ Lag2, data = Smarket, subset = train)
+nb.fit <- model_fit('NAIVE', formula, data, subset)
 nb.fit
+summ('NAIVE', nb.fit)
 
 nb.fit.pred <- predict(nb.fit, Smarket.2005)
+nb.fit.pred<- model_predict('NAIVE', nb.fit , Smarket.2005, Direction.2005)
+
+cfm <- caret::confusionMatrix(nb.fit.pred , Direction.2005)
+ggplotConfusionMatrix(cfm)
+
+model_plot('NAIVE', Xi, Smarket.2005, nb.fit, Direction.2005, nb.fit.pred)
 
 table(nb.fit.pred, Direction.2005)
 mean(nb.fit.pred == Direction.2005)

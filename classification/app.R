@@ -66,20 +66,22 @@ server <- function(input, output, session){
 
   ###-----------------------------------------
   ### FIT MODEL
+  label <- eventReactive(input$button2, {
+    input$label
+  })
+  
   model <- eventReactive(input$button2, {
-    formula <- as.formula(paste0(input$formula))
+    label <- label()
+    formula <- input$formula
     data <- data()
-    subset <-  rsample::training(i()) %>%
-      select(id)
+    subset <-  rsample::training(i())$id 
     
-    ##Logistic Regression
-    model_fit('GLM', formula, data, subset)
-
+    model_fit(label, formula, data, subset)
   })
   
   output$summary <- renderPrint({
     if(!is.null(model())){
-      summary(model())
+      summ(label(), model())
     }
   })
   ###-----------------------------------------
@@ -111,15 +113,19 @@ server <- function(input, output, session){
   ### list of y_predict
   y_pred <- reactive({
     if(!is.null(model())){
+      label <- label()
       new_data <- rsample::testing(i())
-      glm_predict(model(), new_data, y_test())
+      model_predict(label, model(), new_data, y_test())
     }
   })
 
   ###-----------------------------------------
   ### CONFUSION MATRIX
   output$conf.matrix <- renderPlot({
-    cfm <- caret::confusionMatrix(as.factor(y_pred()), as.factor(y_test()))
+    # print(label())
+    # print(unique(y_pred()))
+    # print(unique(y_test()))
+    cfm <- caret::confusionMatrix(y_pred(), y_test())
     ggplotConfusionMatrix(cfm)
     
   })
@@ -164,10 +170,11 @@ server <- function(input, output, session){
   ### PREDICT NEW DATA
   output$predict_result <- renderValueBox({
     if(!is.null(x())){
+      label <- label()
       new_data <- x() %>% as.data.frame()
       names(new_data) <- Xi()
-
-      value <- glm_predict(model(), new_data, y_test())
+      
+      value <- model_predict(label, model(), new_data, y_test())
       valueBox(
         value,
         'Predict Result',
@@ -180,21 +187,18 @@ server <- function(input, output, session){
   ### 2-Dimension GRAPH
   output$graph <- renderPlot({
     Xi <- Xi() #get predictors [X1, X2]
-    
+
     ##We only render 2-dimension graph
     if(length(Xi) == 2){
+      label <- label()
       model <- model()
       test_data <- rsample::testing(i())
       y_test <- y_test()
+      y_pred <- y_pred()
 
-      test_data <- test_data %>%
-        mutate(Class = y_pred()) %>%
-        select(matches(Xi[1]), matches(Xi[2]), Class)
-      names(test_data) <- c('x', 'y', 'Class')
-      
       #Call plot function
-      plot_glm(Xi, test_data, model, y_test)
-
+      model_plot(label, Xi, test_data, model, y_test, y_pred)
+     
     }
   })
 }

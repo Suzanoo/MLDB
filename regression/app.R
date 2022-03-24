@@ -45,9 +45,9 @@ ui <- dashboardPage(
       tabItem(tabName = 'inst',
               strong('Instruction'),
               br(),br(),
-              p('User upload file first,then the app will render raw table.'),
-              p('User can see raw table and dicission to select observer to generate coorelation of observers.'),
-              p('Accorrding to correlation user create formula to fit model, then app generated coefficient plot and residual plot.'),
+              p('User upload file first, then the app will render raw table.'),
+              p('User can see raw table and select observer to generate coorelation matrix.'),
+              p('According to correlation user create formula to fit model, then app generated coefficient plot and residual plot.'),
               tags$ol(
                 tags$li('Linear Regression: y ~ X1'),
                 tags$li('Multiple Linear Regression: y ~ X1 + X2 + ...'),
