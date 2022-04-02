@@ -21,7 +21,7 @@ ggplotConfusionMatrix <- function(m){
 }
 
 ##Function to plot graph
-# Graph will render only 2 dimension following by user formula ex."Response ~ Predictor1 + Predictor2",
+# Graph will render only 2 dimension following by user formula ex."y ~ X1 +X1*X2 + X2",
 # If you provided predictor more than 2 , graph will not render
 model_plot <- function(label, formula, Xi, data, model, y_test, y_pred){
   plot <- tryCatch(
@@ -30,7 +30,6 @@ model_plot <- function(label, formula, Xi, data, model, y_test, y_pred){
         mutate(Class = y_pred) %>%
         select(matches(Xi[1]), matches(Xi[2]), Class) %>% 
         set_names(c('x', 'y', 'Class'))
-        # `colnames<-`(c('x', 'y', 'Class'))
 
       # create dummy data
       dummy <- dummy(label, Xi, data, model, y_test)
@@ -56,15 +55,9 @@ model_plot <- function(label, formula, Xi, data, model, y_test, y_pred){
         guides(alpha = "none")+
         guides(size = "none")+
         guides(shape = "none")
-      
-      
-        # theme(legend.position = "bottom")
-        # scale_color_manual(name = "Class", # or name = element_blank()
-        #                    labels = unique(Class),
-        #                    values = colors)
     },
     error = function(e){
-      # shinyalert::shinyalert("Plot Not Allow!", "Please provide formula first.", type = "error")
+      shinyalert::shinyalert("Plot Not Allow!", "Wrong Formula", type = "error")
     }
   )
   plot
@@ -85,8 +78,6 @@ dummy <- function(label, Xi, data, model, y_test){
   # convert to table
   new_data <- tibble(x_dummy1, x_dummy2) %>% 
     set_names(Xi)
-    # `colnames<-`(Xi)
-  # names(new_data) <- Xi #call model require original name
   
   # Call prediction
   y_pred <- model_predict(label, model, new_data, y_test)
@@ -127,6 +118,7 @@ model_fit <- function(label, formula, data, subset){
     },
     error = function(e){
       shinyalert::shinyalert("Fit Not Allow!", "Wrong Formula.", type = "error")
+      NULL
     }
   )
   fit
@@ -190,12 +182,12 @@ init <- function(data, percent){
 ### Valid user defined formulla
 valid_formula <- function(data, formula){
   words <- names(data)
-  pattern1 <- "[\\d\\w]( ~|~| ~ |~ )[\\d\\w]" #check operand
+  pattern1 <- "[\\d\\w ]~[ \\d\\w.{ .}]" #check operand
   pattern2 <- ("[^a-zA-Z0-9]") #cut all special characters
   
   #TODO this method made me stupid and not perfect because there a lot of function name not only 3
   func <- c(""," ", "poly", "log", "exp", "e", "sqrt", c(0:9)#cut white space and function name
-         %>% as.character())
+            %>% as.character())
   
   #check ~, + operand
   opr <- str_match(formula, pattern1) %>%
@@ -215,7 +207,7 @@ valid_formula <- function(data, formula){
     formula = NULL
   }
   formula
-} 
+}
 
 ## correlation plot
 corr_ <- function(data, label){

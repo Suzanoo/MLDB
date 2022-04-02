@@ -54,7 +54,6 @@ server <- function(input, output, session){
   })
   
   # reset input to initial(NULL) if new file have been upload .
-  # app cannot render graph(Error was managed)
   observeEvent(input$f_input, {
     shinyjs::reset("var")
     shinyjs::reset("formula")
@@ -76,10 +75,6 @@ server <- function(input, output, session){
   # calculate and listening button1 click
   corr_plot <- eventReactive(input$button1, {
     req(data())
-    # data() %>%
-    #   select(matches(input$var)) %>%
-    #   GGally:: ggcorr()
-    
     corr_(data() %>%
                 select(matches(input$var)), input$corr)
   })
@@ -115,6 +110,7 @@ server <- function(input, output, session){
     req(formula())
     words <- names(data())
     pattern_words  <- paste0('\\b', words, '\\b', collapse = "|")
+    
     #extract Xi from formula
     input$formula %>% 
       str_match_all(pattern_words)%>%
@@ -158,13 +154,13 @@ server <- function(input, output, session){
   
   ## calculate and listening button2 click
   summary <- eventReactive(input$button2, {
-    req(model())
-    summ(input$label, model())
+    if(!is.null(model())){
+      summ(input$label, model())
+    }
   })
   
   # render on click button2
   output$summary <- renderPrint({
-    req(model())
     summary()
   })
   
@@ -195,9 +191,12 @@ server <- function(input, output, session){
   ### CONFUSION MATRIX
   # calculate and listening button2 click
   conf <- eventReactive(input$button2, {
-    req(formula())
-    cfm <- caret::confusionMatrix(y_pred(), y_test())
-    ggplotConfusionMatrix(cfm)
+    if(!is.null(model())){
+      cfm <- caret::confusionMatrix(y_pred(), y_test())
+      ggplotConfusionMatrix(cfm)
+    }else{
+      shinyjs::delay(500, alert("Try Again"))
+    }
   })
   
   # render on click button2
@@ -224,15 +223,17 @@ server <- function(input, output, session){
   
   #create dynamic predictors textInput UI
   pred_input <- eventReactive(input$button2, {
-    req(Xi())
-    Xi <- Xi() #[X1, X2, ...]
-    list <- list()
-    for (i in c(1:length(Xi))){
-      list[[i]] <- textInput(paste0('id', i),
-                             Xi[i],
-                             placeholder = Xi[i])
+    if(!is.null(model())){
+      Xi <- Xi() #[X1, X2, ...]
+      list <- list()
+      for (i in c(1:length(Xi))){
+        list[[i]] <- textInput(paste0('id', i),
+                               Xi[i],
+                               placeholder = Xi[i])
+      }
+      list
     }
-    list
+    
   })
   
   # render on click button2
@@ -258,9 +259,8 @@ server <- function(input, output, session){
   ###---------------------------------------------------------------------------------
   ### PREDICT NEW DATA
   # user cannot press button if the variable in box is NULL or blank
-  # in other word app cannot render box(Error was managed) until user click
   observe({
-    # input$id1, input$id2,... from pred_input() we use input$id1 
+    # input$id1, input$id2,... from pred_input() we use input$id1 to control
     shinyjs::toggleState("button4", !is.null(input$id1) && input$id1 != "")
   })
   
@@ -308,8 +308,7 @@ server <- function(input, output, session){
   # we only render for 2 variables
   # calculate and listening button2 click
   plt <- eventReactive(input$button2, {
-    req(formula())
-    if(length(Xi()) == 2){
+    if(!is.null(model()) & length(Xi()) == 2){
       model_plot(input$label,
                  formula(),
                  Xi(),
@@ -317,17 +316,18 @@ server <- function(input, output, session){
                  model(),
                  y_test(),
                  y_pred())
+    }else{
+      NULL
     }
+    
   })
 
   output$graph  <- renderPlot({
     plt()
   })
   
-  ##---------------------------------------------------------------------------------
-
 }
-
+##---------------------------------------------------------------------------------
 shinyApp(ui = ui, server = server)
 
 

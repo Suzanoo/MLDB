@@ -1,239 +1,279 @@
-
 library(shiny)
 library(shinydashboard)
 library(tidyverse)
 library(GGally)
-
+library(shinyjs)
+library(bs4Dash)
 library(ISLR2)
+attach(Boston)
 
-#---------------------------------------------------
-ui <- dashboardPage(
-  dashboardHeader(title = 'Linear Regression'),
-  dashboardSidebar(width = '275',
-    sidebarMenu(
-      menuItem('Instruction', tabName = 'inst', icon = icon('hammer', lib = 'font-awesome')),
-      menuItem('Table & Correlation', tabName = 'table', icon = icon('table', lib = 'font-awesome')),
-      menuItem('DS', tabName = 'ds', icon = icon('desktop', lib = 'font-awesome')),
-      
-      fileInput(inputId = 'f_input', label = 'Upload File'),
-      div(class='col-lg-12 col-md-12',
-          hr()),
-      
-      # Correlation
-      uiOutput(outputId = 'corre'),
-      actionButton(inputId = 'button3', label = 'Run Corr'),
-      div(class='col-lg-12 col-md-12',
-          hr()),
-      
-      # Fit model
-      uiOutput(outputId = 'response'),
-      actionButton(inputId = 'button', label = 'Run Model'),
-      
-      div(class='col-lg-12 col-md-12',
-          hr(),
-      ),
-      # Predic
-      uiOutput(outputId = 'Observer'),
-      actionButton(inputId = 'button2', label = 'Run Predict'),
-      div(class='col-lg-12 col-md-12',
-          valueBoxOutput("pred",width = '100%'),
-      )
-    )
-  ),
-  dashboardBody(
-    tabItems(
-      tabItem(tabName = 'inst',
-              strong('Instruction'),
-              br(),br(),
-              p('User upload file first, then the app will render raw table.'),
-              p('User can see raw table and select observer to generate coorelation matrix.'),
-              p('According to correlation user create formula to fit model, then app generated coefficient plot and residual plot.'),
-              tags$ol(
-                tags$li('Linear Regression: y ~ X1'),
-                tags$li('Multiple Linear Regression: y ~ X1 + X2 + ...'),
-                tags$li('Interaction Terms: y ~ X1 + X2 + X1X2 + ...'),
-                tags$li('Non-Linear: y ~ X + I(X^2) + ...'),
-                tags$li('Polynomial: y ~ poly(X, 4)'),
-                ),
-              p('App will generate observer input for prediction.')
-      ),
-      tabItem(tabName = 'ds',
-              fluidRow(
-                verbatimTextOutput('summary')
-              ),
-              fluidRow(
-                box(plotOutput('explore_plot')),
-                box(plotOutput('model_plot'))
-              )),
-      tabItem(tabName = 'table',
-              fluidRow(
-                DT::dataTableOutput('view_table')
-              ),
-              fluidRow(
-                plotOutput('corr_plot')
-              )
-              )
-    ),
-  )
-)
+## to prevent cross over from old runs
+rm(list = ls(), envir = globalenv()) 
+shinyjs::useShinyjs()
+source('ui.R')
+source('utils.R')
 
 #---------------------------------------------------
 server <- function(input, output, session){
   #upload csv file
   data <- reactive({
-    file <- input$f_input 
+    file <- input$f_input
     data <- if(!is.null(file)){
       read.csv(file$datapath)
-      } %>%
-      as_tibble() 
-      # select_if(is.numeric)
+    }else{
+      Boston #sample 
+    }
+    data %>%
+      mutate(id = row_number())
   })
-  
+
   #render RAW table
   output$view_table <- DT::renderDataTable(
-    data(),
-    options = (list(scrollX = TRUE))
+    DT::datatable(data(),
+                  options = (list(scrollX = TRUE))
+    )
   )
-  
-  #user select Xi to generate correlation plot
-  output$corre <- renderUI({
-    data <- data()
-    if(!is.null(data)){
-      CHOICES <- names(data)
-      shinyWidgets::pickerInput('var',
-                  label = 'Select to generated correlation of variables',
-                  choices = CHOICES,
-                  options = list(`actions-box` = TRUE),
-                  multiple = TRUE)
-    }
+  ###---------------------------------------------------------------------------------
+  ### CORRELATION PLOT
+  # user cannot press button if the variable in box is NULL or blank
+  # in other word app cannot render graph(Error was managed) until user click
+  observe({
+    shinyjs::toggleState("button1", !is.null(input$var) && input$var != "")
   })
   
-  #filter table matched selection from pickerInput
-  df <- eventReactive(input$button3, {
-    data <- data()
-    print(input$var)
-    if(!is.null(data)){
-      data %>%
-        select(dplyr::matches(input$var)) 
-    }
+  # reset input to initial(NULL) if new file have been upload .
+  # app cannot render graph(Error was managed)
+  observeEvent(input$f_input, {
+    shinyjs::reset("var")
+    shinyjs::reset("formula")
   })
   
-  #corr plot
-  output$corr_plot <-renderPlot({
-    df() %>%
-      ggcorr()
-  })
-  
-  #user define formula
-  output$response <- renderUI({
-    textInput(inputId = 'formula',
-              label = 'Creat formula',
-              placeholder = 'y ~ X1 + X2 + ...')
-  })
-
-  #create model
-  lm_fit <- eventReactive(input$button, {
-    data <- data()
-    lm.fit <- lm(as.formula(paste0(input$formula)), data = data)
-    lm.fit
-  })
-  
-  #--------------------------
-  ## We have formula which contain predictors Xi
-  ## We extract those Xi and then create input of those Xi for prediction
-  Xi <- eventReactive(input$button, {
-    data <- data()
-    
-
-    pattern_words  <- paste0('\\b', words, '\\b', collapse = "|")
-    
-    #extract Xi from formula
-    y <- input$formula %>% # y ~ X1 + X2, ...
-      str_match_all(pattern_words)%>%
-      flatten_chr() %>%
-      unique() #[y, X1, X2, ...]
-    
-    #cut response (y) 
-    if (length(y) == 1){ #if formula (y ~.)
-      Xi <- words[!(words %in% y)] #[X1, X2, ...]
-    }else{
-      Xi <- y[2:length(y)] #[X1, X2, ...]
-    } 
-  })
-  
-  #create dynamic textInput
-  pred_input <- reactive({
-    Xi <- Xi()
-    list <- list()
-    for (i in c(1:length(Xi))){
-      list[[i]] <- textInput(paste0('id', i),
-                          Xi[i],
-                          placeholder = Xi[i])
-    }
-    list
-  })
-
-  #render textInput
-  output$Observer <- renderUI(pred_input())
-  
-  #get values of all observation Xi from user
-  x <- reactive({
-    list <- list()
-    lapply(1:length(pred_input()), function(i){
-      list[i] <- as.numeric(input[[paste0("id",i)]])
-    })
-  })
-  
-  #calculate y_pred
-  y_pred <-  eventReactive(input$button2, {
-    lm.fit <- lm_fit()
-    
-    new_data <- data.frame(x()) #get values of all observation Xi
-    names(new_data) <- Xi()
-    
-    predict(lm.fit, newdata = new_data, interval = "confidence")[1]
-  })
-  
-  output$pred <- renderValueBox({
-    valueBox(sprintf(y_pred(), fmt = '%#.4f') , "PREDICTS", icon = icon("users"),
-             color = "orange"
+  # We use input-ui type and update it in server instead of outputUI for speed up app
+  observeEvent(input$f_input, {
+    req(data())
+    CHOICES = names(data())
+    shinyWidgets::updatePickerInput(
+      session = session,
+      inputId = 'var',
+      label = 'Select to generated correlation matrix',
+      choices = CHOICES,
+      options = list(`actions-box` = TRUE)
     )
   })
-
-  #--------------------------
-  #render summary of model
+  
+  # calculate and listening button1 click
+  corr_plot <- eventReactive(input$button1, {
+    req(data())
+    corr_(data() %>%
+            select(matches(input$var)), input$corr)
+  })
+  
+  # render plot
+  output$corr_plot <- renderPlot({
+    corr_plot()
+  })
+  
+  ###---------------------------------------------------------------------------------
+  ### FIT MODEL
+  observe({
+    shinyjs::toggleState("button2", !is.null(input$formula) && input$formula != "")
+  })
+  onclick('button3', reset('formula'))
+  
+  # switch to tab Order66 when click run model
+  observeEvent(input$button2, {
+    updateTabsetPanel(session, "tabs",
+                      selected = "ds")
+  })
+  
+  ## input filter
+  # check formula input
+  formula <- eventReactive(input$button2, {
+    valid_formula(data(), input$formula)
+  })
+  
+  # update input
+  observeEvent(input$button2, {
+    req(formula())
+    i <- input$data_split
+    formula <- formula()
+    
+    updateSliderInput(session, 'data_split', value = i)
+    updateTextInput(session, 'formula', value = formula)
+  })
+  
+  #initial split data
+  i_split <- reactive({
+    init(data(), input$data_split)
+  })
+ 
+  #create model
+  model <- eventReactive(input$button2, {
+    req(formula())
+    
+    #index train data by id
+    subset <- rsample::training(i_split())$id
+    model <- model_fit(formula(), data(), subset)
+    
+    if(is.null(model)){
+      model = NULL
+    }else{
+      model = model
+    }
+    model
+  })
+  
+  summ <- eventReactive(input$button2, {
+    req(model())
+    summary(model())
+  })
+  
+  # render on click button2
   output$summary <- renderPrint({
-    summary(lm_fit())
+    req(model())
+    summ()
   })
   
+  ###---------------------------------------------------------------------------------
+  ### PREDICTORS INPUT PROCESS
+  ## User defined formula ex. y ~ X1 + X2 and we get it as "y ~ X1 + X2".
+  ## We need retrieve "y ~ X1 + X2" to list of characters [y, X1, X2, ...] 
+  var <- eventReactive(input$button2, {
+    req(formula())
+    variables(data(), formula())
+  })
+
+  # we have [y, X1, X2, ...] from var().
+  # we get rid off outcome y ,and
+  # we will create input box of X1, X2, X3, ... for prediction
+  Xi <- reactive({
+    req(var())
+    predictors(data(), formula())
+  })
+  
+  # create UI of predictors input
+  pred_input <- eventReactive(input$button2, {
+    req(model())
+    if(!is.null(model())){
+      req(Xi())
+      a <- Xi()
+      list <- list()
+      for (i in c(1:length(a))){
+        list[[i]] <- textInput(paste0('id', i),
+                               a[i],
+                               placeholder = a[i])
+      }
+      list
+    }else{
+      NULL
+    }
+    
+  })
+
+  # render on click button2
+  output$predictors <- renderUI(
+    div(id = 'Xi', pred_input())
+  )
+  
+  # get values from UI of predictors input
+  x <- eventReactive(input$button4, {
+    req(pred_input())
+    a <- pred_input()
+    value <- list()
+    value <- map(1:length(a), function(i){
+      # check valid "numeric" -- invalid "char"
+      if(!is.na(as.numeric(input[[paste0("id",i)]]))){
+        value[[i]] = as.numeric(input[[paste0("id",i)]])
+      }else{
+        value[[i]] = NA
+      }
+    })
+    value
+  })
+ 
+  ##--------------------------
+  ### PREDICT NEW DATA
+  observe({
+    # input$id1, input$id2,... from pred_input() we use input$id1 to control
+    shinyjs::toggleState("button4", !is.null(input$id1) && input$id1 != "")
+  })
+  onclick('button2', reset('predict_result'))
+  
+  #calculate y_pred
+  y_pred <-  eventReactive(input$button4, {
+    req(x())
+    if(!anyNA(x())){
+      outcome(model(), x(), Xi())
+    }else{
+      shinyjs::alert("Wrong Input")
+    }
+  })
+  
+  # Render value box
+  output$predict_result <- renderValueBox({
+    if(!anyNA(x())){
+      value <- sprintf(y_pred(), fmt = '%#.4f')[1]
+      valueBox(
+        subtitle = 'Predict Result',
+        value = value,
+        color = "success",
+        icon = icon("check-circle"),
+      )
+    }else{
+      valueBox(
+        subtitle = 'Wrong Input',
+        value = "Error",
+        color = "warning",
+        icon = icon("times"),
+      )
+    }
+  })
+  
+  ##--------------------------
   #coeff plot
-  output$explore_plot <- renderPlot({
-    #ggduo(data)
-    lm_fit() %>%
-      broom::tidy() %>%
-      ggplot(aes(x = term, y = estimate, color = p.value <= 0.05)) + 
-      geom_segment(aes(xend = term, yend = 0)) + 
-      geom_point() + 
-      theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
-      labs(title = paste0("Coefficients for predicting ", input$response),
-           subtitle = paste0('Formula : ', input$formula))
+  coeff_plt <- eventReactive(input$button2, {
+    req(model())
+    if(!is.null(model())){
+      model() %>%
+        broom::tidy() %>%
+        ggplot(aes(x = term, y = estimate, color = p.value <= 0.05)) +
+        geom_segment(aes(xend = term, yend = 0)) +
+        geom_point() +
+        theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+        labs(title = paste0("Coefficients for predicting "),
+             subtitle = paste0('Formula : ', input$formula))
+    }else{
+      shinyjs::delay(500, alert("Try Again!"))
+    }
   })
   
+  output$explore_plot <- renderPlot({
+    coeff_plt()
+  })
+
   #residual plot
-  output$model_plot <- renderPlot({
-    data <- data()
-    lm.fit <- lm_fit()
-    data %>%
-      mutate(
-        fitted.values = pluck(lm.fit$fitted.values),
-        residuals = pluck(lm.fit$residuals)
-      ) %>%
-      as_data_frame() %>%
-      ggplot(aes(fitted.values, residuals, color = residuals))+
+  resid_plt <- eventReactive(input$button2, {
+    if(!is.null(model())){
+      train_data <- rsample::training(i_split())
+      lm.fit <- model()
+      train_data %>%
+        mutate(
+          fitted.values = pluck(lm.fit$fitted.values),
+          residuals = pluck(lm.fit$residuals)
+        ) %>%
+        as_data_frame() %>%
+        ggplot(aes(fitted.values, residuals, color = residuals))+
         geom_point()+
         geom_smooth(color="green")+
         geom_hline(yintercept=0, linetype="dashed", color="blue")+
         labs(x = "Fitted Values", y = "Residual")
+    }else{
+      shinyjs::delay(500, alert("Try Again!"))
+    }
+  })
+  
+  output$model_plot <- renderPlot({
+    resid_plt()
   })
 }
 
