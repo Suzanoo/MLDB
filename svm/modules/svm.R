@@ -2,13 +2,19 @@
 #---------------------
 # Module Code
 #---------------------
-clusterUI <- function(id, choices, cost_, gamma_){
-  CHOICE <- choices
+ui_cluster <- function(id){
   ns <- NS(id)
   tagList(
     plotOutput(ns("plot")),
     hr(),
-    h4('Kernel : see ', a(href = "https://www.rdocumentation.org/packages/e1071/versions/1.7-9/topics/svm", "Detail Here")),
+  )
+}
+
+ui_ctrl <- function(id, choices, cost_, gamma_){
+  CHOICE <- choices
+  ns <- NS(id)
+  tagList(
+    h5('Kernel : see ', a(href = "https://www.rdocumentation.org/packages/e1071/versions/1.7-9/topics/svm", "Detail Here")),
     h5("Note : Default is radial other is not effect in this app now."),
     ChoiceGroup.shinyInput("kernel", label = "",
                            options = list(
@@ -18,17 +24,17 @@ clusterUI <- function(id, choices, cost_, gamma_){
                              list(key = "sigmoid", text = "sigmoid")
                              ),
                            value = "radial"),
-    
-    h4("Cost : devide by hundred/100"),
-    Slider.shinyInput("cost", value = cost_*100, min = 0, max = 10000, step = 100),
-    
-    h4("Gamma : devide by ten/10"),
+
+    h5("Cost x 100 : "),
+    Slider.shinyInput("cost", value = cost_*100, min = 0, max = 10000, step = 500),
+
+    h5("Gamma x 10  : "),
     Slider.shinyInput("gamma", value = gamma_*10, min = 0, max = 100, step = 5),
-    
-    h4("X Variable"),
+
+    h5("Y Variable"),
     ComboBox.shinyInput(inputId = "x", options = options_(CHOICE)),
-    
-    h4("Y Variable"),
+
+    h5("X Variable"),
     ComboBox.shinyInput(inputId = "y", options = options_(CHOICE)),
     br(),
     PrimaryButton.shinyInput(inputId = "button3", text = "Plot")

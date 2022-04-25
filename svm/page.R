@@ -37,9 +37,10 @@ home_page <- makePage(
 data_page <- makePage(
   "DATA",
   "",
+  
   div(
-    Stack(ui_table("table1")),
-    Stack(ui_corr("corr1"))
+    ui_table("table1"),
+    ui_corr("corr1")
   )
 )
 
@@ -64,24 +65,34 @@ analysis_page <- makePage(
   "SVM FIT",
   "support vector machine demo",
   div(
-    # Stack(
-    #   horizontal = TRUE,
-    #   tokens = list(childrenGap = 10),
-    #   makeCard("Title", vbox_UI("vb1"), size = 3, style = "background-color : orange;"),
-    #   makeCard("Title", vbox_UI("vb2"), size = 3, style = "background-color : green;"),
-    #   makeCard("Title", vbox_UI("vb3"), size = 3, style = "background-color : #279ce6;"),
-    #   makeCard("Title", vbox_UI("vb4"), size = 3, style = "background-color : #d5a3e3;"),
-    # ),
-    Stack(
-      horizontal = TRUE,
-      makeCard("", ctrl, size = 4),
-      makeCard("Confusion Matrix", ui_confMatrix("conf1"), size = 8, style = "background-color : lightgrey;"),
-     
+    fluidRow(
+      div(class = 'col-lg-4 col-md-4 col-sm-12',
+         makeCard("", ctrl)  
+      ),
+      div(class = 'col-lg-8 col-md-8 col-sm-12',
+         makeCard("Confusion Matrix", ui_confMatrix("conf1"), style = "background-color : lightgrey;")
+      )
     ),
-    Stack(
-      horizontal = TRUE,
-      makeCard("Summary", verbatimTextOutput("summary"), size = 4, style = "background-color : lightgrey;"),
-      makeCard("Cluster", uiOutput("svm1"), size = 8, style = "background-color : lightgrey;")
+    fluidRow(
+      div(class = 'col-lg-4 col-md-4 col-sm-12',
+         makeCard("Summary", verbatimTextOutput("summary"), style = "background-color : lightgrey;"),
+         makeCard("Graph Control", uiOutput("svm2"), style = "background-color : lightgrey;"),
+      ),
+      div(class = 'col-lg-8 col-md-8 col-sm-12',
+         makeCard("Cluster", uiOutput("svm1"), style = "background-color : lightgrey;")
+      )
     )
   )
+    
+    # Stack(
+    #   horizontal = TRUE,
+    #   makeCard("", ctrl, size = 4),
+    #   makeCard("Confusion Matrix", ui_confMatrix("conf1"), size = 8, style = "background-color : lightgrey;"),
+    #  
+    # ),
+    # Stack(
+    #   horizontal = TRUE,
+    #   makeCard("Summary", verbatimTextOutput("summary"), size = 4, style = "background-color : lightgrey;"),
+    #   makeCard("Cluster", uiOutput("svm1"), size = 8, style = "background-color : lightgrey;")
+    # )
 )

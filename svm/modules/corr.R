@@ -18,11 +18,17 @@ ui_corr <- function(id){
 
   ns <- shiny::NS(id)
   div(
-    Stack(
-      token = list(childrenGap = 10),
-      horizontal = TRUE,
-      makeCard("", corr_fill, size = 4),
-      makeCard("Plot Correlation Matrix", plotOutput(ns("corr_plot")), size = 8, style = " background-color : lightgrey;")
+    # Stack(
+    #   token = list(childrenGap = 10),
+    #   horizontal = TRUE,
+    #   makeCard("", corr_fill, size = 4),
+    #   makeCard("Plot Correlation Matrix", plotOutput(ns("corr_plot")), size = 8, style = " background-color : lightgrey;")
+    # )
+    fluidRow(
+      div(class = 'col-lg-4 col-md-4 col-sm-12',
+        makeCard("", corr_fill)),
+      div(class = 'col-lg-8 col-md-8 col-sm-12',
+        makeCard("Plot Correlation Matrix", plotOutput(ns("corr_plot")), style = " background-color : lightgrey;"))
     )
   )
 

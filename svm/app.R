@@ -10,10 +10,6 @@
 library(shiny)
 library(dplyr)
 library(ggplot2)
-# library(glue)
-# library(plotly)
-# library(leaflet)
-# library(sass)
 library(shiny.fluent)
 library(shiny.router)
 library(ISLR2)
@@ -51,7 +47,7 @@ shiny_router_script_tag <- shiny::tags$script(type = "text/javascript", src = sh
 #---------------------
 # UI:
 #---------------------
-ui <- fluentPage(
+ui <- fluidPage(
   layout(router$ui),
   tags$head(
     tags$link(href = "style.css", rel = "stylesheet", type = "text/css"),
@@ -109,7 +105,7 @@ server <- function(input, output, session) {
   #---------------------
   # FIT MODEL:
   #---------------------
-  # update input
+  # update outcome input
   observeEvent(input$file_input, {
     req(data())
     
@@ -122,9 +118,8 @@ server <- function(input, output, session) {
     )
   })
   
-  # update input
+  # update % split input
   observeEvent(input$button1, {
-    
     i <- input$split
     updateSlider.shinyInput(
       session = shiny::getDefaultReactiveDomain(),
@@ -133,16 +128,23 @@ server <- function(input, output, session) {
     )
   })
   
-  # create test-train data
-  split <- eventReactive(input$button1, {
-    init_split(data(), input$split)
-  })
-  
   # outcome
   outcome <- reactive({
     input$outcome$text
   })
   
+  # # modify data for numeric --> factor
+  # data <- reactive({
+  #   data() %>% 
+  #     mutate_at(vars(outcome()), ~as.factor(.))
+  # })
+
+  # create test-train data
+  split <- eventReactive(input$button1, {
+    data <- data() %>% mutate_at(vars(outcome()), ~as.factor(.))
+    init_split(data, input$split)
+  })
+
   # tune model
   tune.out <- eventReactive(input$button1, {
     y <- outcome()
@@ -180,6 +182,10 @@ server <- function(input, output, session) {
   # -----
   # create ui input for graph render
   output$svm1 <- renderUI({
+    ui_cluster("cluster1")
+  })
+  
+  output$svm2 <- renderUI({
     data <- rsample::training(split()) %>% 
       select(-matches(outcome()))
     choices <- names(data)
@@ -187,7 +193,7 @@ server <- function(input, output, session) {
     cost_ <- tune.out()$best.parameters$cost
     gamma_ <- tune.out()$best.parameters$gamma
     
-    clusterUI("cluster1", choices, cost_, gamma_)
+    ui_ctrl("cluster1", choices, cost_, gamma_)
   })
   
   # update input
@@ -237,24 +243,41 @@ server <- function(input, output, session) {
   })
 
   # plot graph
-  observeEvent(input$button3, {
-    formula <- paste(outcome(), " ~ .")
+  # observeEvent(input$button3, {
+  #   formula <- paste(outcome(), " ~ .")
+  #   Xi <- c(input$x$text, input$y$text, outcome())
+  #   
+  #   data <- rsample::training(split()) %>%
+  #     select(matches(Xi))
+  # 
+  #   # print(outcome())
+  #   # print(input$x)
+  #   # print(input$y)
+  # 
+  #   kernel <- "radial"
+  #   cost_ <- input$cost/100 # /100 because setting up in svm.R
+  #   gamma_ <- input$gamma/10 # /10 because settig up in svm.R
+  # 
+  #   # cluster modules
+  #   cluster("cluster1", formula, data, kernel, cost_, gamma_)
+  # 
+  # })
+  
+  Xi <- eventReactive(input$button3, {
     Xi <- c(input$x$text, input$y$text, outcome())
-    
+  })
+  
+  observe({
+    formula <- paste(outcome(), " ~ .")
+    Xi <- Xi()
     data <- rsample::training(split()) %>%
       select(matches(Xi))
-
-    print(outcome())
-    print(input$x)
-    print(input$y)
-
     kernel <- "radial"
     cost_ <- input$cost/100 # /100 because setting up in svm.R
     gamma_ <- input$gamma/10 # /10 because settig up in svm.R
-
-    # cluster modules
+    
     cluster("cluster1", formula, data, kernel, cost_, gamma_)
-
+    
   })
   
   session$onSessionEnded(stopApp)
